@@ -1,0 +1,11 @@
+<odoo>
+    <menuitem
+        id="sales_root_menu"
+        name="Sales"
+    />
+    <menuitem
+        id="sale_order_menu"
+        name="Sale Order"
+        parent="sales_root_menu"
+    />
+</odoo>

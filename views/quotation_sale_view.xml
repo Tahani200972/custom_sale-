@@ -1,0 +1,110 @@
+<odoo>
+    <record id="property_view_tree" model="ir.ui.view">
+        <field name="name">quotation_sale tree </field>
+        <field name="model">quotation.sale</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="ref" />
+                <field name="customer_id" />
+                <field name="quotation_template_id"/>
+                <field name="expiration" />
+                <field name="payment_terms_id"/>
+            </tree>
+        </field>
+    </record>
+
+
+    <record id="quotation_sale_view_form" model="ir.ui.view">
+         <field name="name">quotation_sale form </field>
+        <field name="model">quotation.sale</field>
+        <field name="arch" type="xml">
+              <form create="1" edit="1" delete="1">
+                  <sheet>
+                        <header>
+                            <button name="action_quotation" type="object" class="btn-primary" string="Quotation"
+                                     />
+                            <button name="action_quotation_sent" type="object" class="btn-primary" string="Quotation Sent"
+                                     invisible= "state !='quotation'"/>
+                            <button name="action_sale_order" type="object" class="btn-primary" string="Sale Order"
+                                     invisible= "state !='quotation_sent'"/>
+                            <field name="state" widget="statusbar" optional="{'clickable':1}"/>
+                        </header>
+                        <div class="oe_title">
+                            <label for="ref"/>
+                            <h1>
+                                <field name="ref" />
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="customer_id" />
+                                <field name="quotation_template_id"/>
+                            </group>
+                            <group>
+                                <field name="expiration"/>
+                                <field name="payment_terms_id" />
+                            </group>
+                            <notebook>
+                                <page string='Order Lines'>
+                                    <field name="line_ids">
+                                        <tree editable="bottom">
+                                            <field name="product_id"/>
+                                            <field name="description"/>
+                                            <field name="quantity"/>
+                                            <field name="unit_price"/>
+                                            <field name="tax_id" domain="[('name', 'in', ['15% VAT', '0% VAT'])]"/>
+                                            <field name="price_subtotal" readonly="1"/>
+                                            <field name="price_total" readonly="1"/>
+                                        </tree>
+                                    </field>
+
+                                      <group>
+                                         <div style="display: flex; justify-content: flex-end; margin-top:15px;">
+                                             <table class="o_group o_inner_group" style="width: 250px; text-align: right;">
+                                                  <tr>
+                                                      <td><strong>Untaxed Amount:</strong></td>
+                                                        <td>
+                                                           <field name="amount_untaxed" readonly="1" nolabel="1" class="oe_inline"/>
+                                                        </td>
+                                                  </tr>
+                                                 <tr>
+                                                    <td><strong>Tax 15%:</strong></td>
+                                                      <td>
+                                                        <field name="amount_tax" readonly="1" nolabel="1" class="oe_inline"/>
+                                                      </td>
+                                                 </tr>
+                                                 <tr>
+                                                   <td><strong>Total:</strong></td>
+                                                      <td>
+                                                        <field name="amount_total" readonly="1" nolabel="1" class="oe_inline"/>
+                                                      </td>
+                                                 </tr>
+                                             </table>
+                                         </div>
+                                      </group>
+                                </page>
+                            </notebook>
+                        </group>
+                  </sheet>
+                  <div class="oe_chatter">
+                      <field name="message_follower_ids"/>
+                      <field name="activity_ids"/>
+                      <field name="message_ids"/>
+                  </div>
+              </form>
+        </field>
+    </record>
+
+    <record id="quotation_sale_action" model="ir.actions.act_window">
+        <field name="name">Quotation</field>
+        <field name="res_model">quotation.sale</field>
+    </record>
+
+    <menuitem
+        id="quotation_menu_item"
+        name="Quotation"
+        parent="sale_order_menu"
+        action="quotation_sale_action"
+    />
+
+</odoo>
