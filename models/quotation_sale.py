@@ -1,24 +1,47 @@
+from email.policy import default
+
 from odoo import models , fields , api
+from odoo.exceptions import ValidationError
 
 class QuotationSale(models.Model):
     _name = 'quotation.sale'
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
-    customer_id = fields.Many2one('res.partner', string='Customer')
+    customer_id = fields.Many2one('res.partner', string='Customer', required=1)
     ref = fields.Char(default='New', readonly=True)
     quotation_template_id = fields.Many2one('product.product')
     expiration = fields.Date(tracking=1)
     payment_terms_id = fields.Many2one('account.payment.term')
+    # state = fields.Selection([
+    #     ('quotation', 'Quotation'),
+    #     ('quotation_sent', 'Quotation Sent'),
+    #     ('sale_order', 'Sale Order'),
+    # ])
     state = fields.Selection([
-        ('quotation', 'Quotation'),
-        ('quotation_sent', 'Quotation Sent'),
-        ('sale_order', 'Sale Order'),
-    ])
-    # SALE_ORDER_STATE = [
-    #     ('draft', "Quotation"),
-    #     ('sent', "Quotation Sent"),
-    #     ('sale', "Sales Order"),
-    #     ('cancel', "Cancelled"),
+        ('draft', "Quotation"),
+        ('sent', "Quotation Sent"),
+        ('sale', "Sales Order"),
+        ('cancel', "Cancelled"),
+    ],default='draft')
+
+    @api.constrains('customer_id')
+    def _check_customer_required(self):
+        for rec in self:
+            if not rec.customer_id:
+                raise ValidationError("Customer is required before saving!")
+
+    def action_quotation_sent(self):
+        for rec in self:
+            rec.state = 'sent'
+
+    def action_confirm(self):
+        for rec in self:
+            rec.state = 'sale'
+
+    def action_cancel(self):
+        for rec in self:
+            rec.state = 'cancel'
+
 
     line_ids = fields.One2many('quotation.sale.line', 'quotation_sale_id')
 
@@ -27,6 +50,51 @@ class QuotationSale(models.Model):
     amount_tax = fields.Float(string="Tax Amount", compute="_compute_totals", store=True)
     amount_total = fields.Float(string="Total With Tax", compute="_compute_totals", store=True)
 
+    invoice_ids=fields.One2many('account.move', 'quotation_id', string='Invoices')
+    invoice_count = fields.Integer(compute='_compute_invoice_count', string='Invoice Count')
+
+    @api.depends('invoice_ids')
+    def _compute_invoice_count(self):
+        for quotation in self:
+            quotation.invoice_count=len(quotation.invoice_ids)
+
+    def action_create_invoice(self):
+        self.ensure_one()
+        # Create the invoice with relation to quotation
+        invoice_vals = {
+            'move_type': 'out_invoice',
+            'invoice_origin': self.ref,
+            'quotation_id': self.id,
+            'invoice_line_ids': [],
+        }
+        for line in self.line_ids:
+            invoice_vals['invoice_line_ids'].append((0, 0, {
+                'product_id': line.product_id.id,
+                'quantity': line.quantity,
+                'price_unit': line.unit_price,
+                'name': line.description,
+                'tax_ids': [(6, 0, line.tax_id.ids)] if line.tax_id else False,
+            }))
+
+        invoice = self.env['account.move'].create(invoice_vals)
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Invoice',
+            'res_model': 'account.move',
+            'view_mode': 'form',
+            'res_id': invoice.id,
+            'target': 'current',
+        }
+
+    def action_view_invoice(self):
+        self.ensure_one()
+        action = self.env.ref('account.action_move_out_invoice_type').read()[0]
+        action['domain'] = [('quotation_id', '=', self.id)]
+        action['context'] = {'default_quotation_id' : self.id }
+        return action
+
+
+
     @api.depends('line_ids.price_subtotal', 'line_ids.price_total')
     def _compute_totals(self):
         for rec in self:
@@ -34,17 +102,6 @@ class QuotationSale(models.Model):
             rec.amount_total = sum(line.price_total for line in rec.line_ids)
             rec.amount_tax = rec.amount_total - rec.amount_untaxed
 
-    def action_quotation(self):
-        for rec in self:
-            rec.state = 'quotation'
-
-    def action_quotation_sent(self):
-        for rec in self:
-            rec.state = 'quotation_sent'
-
-    def action_sale_order(self):
-        for rec in self:
-            rec.state = 'sale_order'
 
     @api.model_create_multi
     def create(self, vals_list):
