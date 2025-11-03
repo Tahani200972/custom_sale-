@@ -52,6 +52,10 @@ class QuotationSale(models.Model):
 
     invoice_ids=fields.One2many('account.move', 'quotation_id', string='Invoices')
     invoice_count = fields.Integer(compute='_compute_invoice_count', string='Invoice Count')
+    invoice_state=fields.Selection([
+        ('draft', "Draft"),
+        ('invoiced', "Invoiced"),
+    ],default='draft', store=True)
 
     @api.depends('invoice_ids')
     def _compute_invoice_count(self):
@@ -59,40 +63,31 @@ class QuotationSale(models.Model):
             quotation.invoice_count=len(quotation.invoice_ids)
 
     def action_create_invoice(self):
-        self.ensure_one()
-        # Create the invoice with relation to quotation
-        invoice_vals = {
-            'move_type': 'out_invoice',
-            'invoice_origin': self.ref,
-            'quotation_id': self.id,
-            'invoice_line_ids': [],
-        }
-        for line in self.line_ids:
-            invoice_vals['invoice_line_ids'].append((0, 0, {
-                'product_id': line.product_id.id,
-                'quantity': line.quantity,
-                'price_unit': line.unit_price,
-                'name': line.description,
-                'tax_ids': [(6, 0, line.tax_id.ids)] if line.tax_id else False,
-            }))
-
-        invoice = self.env['account.move'].create(invoice_vals)
         return {
             'type': 'ir.actions.act_window',
-            'name': 'Invoice',
-            'res_model': 'account.move',
+            'name': 'Create Invoice',
+            'res_model': 'create.invoice',
             'view_mode': 'form',
-            'res_id': invoice.id,
-            'target': 'current',
+            'target': 'new',
+            'context': {
+                'default_quotation_id': self.id
+            }
         }
+
 
     def action_view_invoice(self):
         self.ensure_one()
-        action = self.env.ref('account.action_move_out_invoice_type').read()[0]
-        action['domain'] = [('quotation_id', '=', self.id)]
-        action['context'] = {'default_quotation_id' : self.id }
-        return action
+        invoices = self.env['account.move'].search([('quotation_id', '=', self.id)])
 
+        action = self.env.ref('account.action_move_out_invoice_type').read()[0]
+
+        if len(invoices) == 1:
+            action['res_id'] = invoices.id
+            action['views'] = [(self.env.ref('account.view_move_form').id, 'form')]
+        else:
+            action['domain'] = [('id', 'in', invoices.ids)]
+
+        return action
 
 
     @api.depends('line_ids.price_subtotal', 'line_ids.price_total')

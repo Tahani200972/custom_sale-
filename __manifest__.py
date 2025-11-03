@@ -10,6 +10,8 @@
         "data/sequence.xml",
         "views/base_menu.xml",
         "views/quotation_sale_view.xml",
+        "views/account_move_view.xml",
+        "wizard/create_invoice_wizard_view.xml",
 ],
     "assets": {
 
