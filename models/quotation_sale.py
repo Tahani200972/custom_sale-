@@ -52,10 +52,9 @@ class QuotationSale(models.Model):
 
     invoice_ids=fields.One2many('account.move', 'quotation_id', string='Invoices')
     invoice_count = fields.Integer(compute='_compute_invoice_count', string='Invoice Count')
-    invoice_state=fields.Selection([
-        ('draft', "Draft"),
-        ('invoiced', "Invoiced"),
-    ],default='draft', store=True)
+    hide_create_invoice = fields.Boolean(default=False)
+
+
 
     @api.depends('invoice_ids')
     def _compute_invoice_count(self):

@@ -5,6 +5,7 @@ class CreateInvoiceWizard(models.TransientModel):
 
     quotation_id = fields.Many2one('quotation.sale')
 
+
     def action_confirm_invoice(self):
         self.ensure_one()
         quotation = self.quotation_id
@@ -27,7 +28,7 @@ class CreateInvoiceWizard(models.TransientModel):
             }))
 
         invoice = self.env['account.move'].create(invoice_vals)
-        quotation.invoice_state = 'invoiced'
+        quotation.write({'hide_create_invoice': True})
 
         return {
             'type': 'ir.actions.act_window',

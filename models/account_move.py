@@ -13,6 +13,15 @@ class AccountMove(models.Model):
         action['views'] = [[view_id,'form']]
         return action
 
+    def button_cancel(self):
+        res = super(AccountMove, self).button_cancel()
+        for move in self:
+            if move.quotation_id:
+                move.quotation_id.write({
+                    'hide_create_invoice': False,
+                })
+        return res
+
     # def action_view_quotation(self):
     #     self.ensure_one()
     #     if not self.quotation_id:
